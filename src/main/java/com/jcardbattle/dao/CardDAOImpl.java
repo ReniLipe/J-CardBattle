@@ -1,7 +1,6 @@
 package com.jcardbattle.dao;
 
-import com.jcardbattle.model.Card;
-import com.jcardbattle.model.CardType;
+import com.jcardbattle.model.*;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -20,17 +19,31 @@ public class CardDAOImpl implements CardDAO {
              ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
-                Card c = new Card();
-                c.setId(rs.getInt("id"));
-                c.setName(rs.getString("name"));
-                // Conversione sicura della stringa in ENUM
-                c.setType(CardType.valueOf(rs.getString("card_type")));
-                c.setManaCost(rs.getInt("mana_cost"));
-                c.setAttack(rs.getInt("attack"));
-                c.setHealth(rs.getInt("health"));
-                c.setDescription(rs.getString("description"));
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
+                CardType type = CardType.valueOf(rs.getString("card_type"));
+                int cost = rs.getInt("mana_cost");
+                String desc = rs.getString("description");
+                int atk = rs.getInt("attack");
+                int hp = rs.getInt("health");
 
-                cards.add(c);
+                Card card = null;
+
+                switch (type) {
+                    case MINION:
+                        card = new MinionCard(id, name, cost, desc, atk, hp);
+                        break;
+                    case LAND:
+                        card = new LandCard(id, name, desc);
+                        break;
+                    case SPELL:
+                        card = new SpellCard(id, name, cost, desc);
+                        break;
+                }
+
+                if (card != null) {
+                    cards.add(card);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace(); // Stampa l'errore se c'è
