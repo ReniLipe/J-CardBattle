@@ -27,4 +27,18 @@ public abstract class Card {
     public String toString() {
         return name + " (" + type + ")";
     }
+    public String getName() {
+        return name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public int getManaCost() {
+        return manaCost;
+    }
+    public CardType getType() {
+        return type;
+    }
 }
