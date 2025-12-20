@@ -1,21 +1,22 @@
 package com.jcardbattle.model;
 
 public class MinionCard extends Card {
-    private int attack;
-    private int health;
+    private int id;
+    private int manaCost;
+    private String description;
 
-    public MinionCard(int id, String name, int manaCost, String desc, int attack, int health) {
-        super(id, name, CardType.MINION, manaCost, desc);
-        this.attack = attack;
-        this.health = health;
+    // Costruttore: deve passare atk e hp al genitore (Card)
+    public MinionCard(int id, String name, int cost, String desc, int atk, int hp) {
+        // SUPER è la chiamata al costruttore di Card.
+        // Passiamo: Nome, Tipo, Attacco, Difesa (usiamo hp come difesa)
+        super(name, CardType.MINION, atk, hp);
+
+        this.id = id;
+        this.manaCost = cost;
+        this.description = desc;
     }
 
-    @Override
-    public void play() {
-        System.out.println(">>> EVOCAZIONE: " + name + " scende in campo con " + attack + "/" + health);
-        // Qui in futuro metteremo la logica per aggiungerlo al tavolo
-    }
-
-    public int getAttack() { return attack; }
-    public int getHealth() { return health; }
+    // Getter specifici dei Minion
+    public int getManaCost() { return manaCost; }
+    public String getDescription() { return description; }
 }

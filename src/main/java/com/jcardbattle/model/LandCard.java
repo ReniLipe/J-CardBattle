@@ -1,13 +1,16 @@
 package com.jcardbattle.model;
 
 public class LandCard extends Card {
+    private int id;
+    private String description;
+
     public LandCard(int id, String name, String desc) {
-        super(id, name, CardType.LAND, 0, desc); // Costo 0 sempre
+        // Passiamo 0 e 0 anche qui
+        super(name, CardType.LAND, 0, 0);
+
+        this.id = id;
+        this.description = desc;
     }
 
-    @Override
-    public void play() {
-        System.out.println(">>> TERRA GIOCATA: " + name + " ti dà +1 Mana Permanente!");
-        // Qui aumenteremo il mana del giocatore
-    }
+    public String getDescription() { return description; }
 }

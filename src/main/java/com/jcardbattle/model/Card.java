@@ -1,44 +1,34 @@
 package com.jcardbattle.model;
 
-// Aggiungi "abstract" qui
-public abstract class Card {
-    protected int id;
-    protected String name;
-    protected CardType type;
-    protected int manaCost;
-    protected String description;
+public class Card {
+    private String name;
+    private CardType type;
+    private int attack;   // NUOVO!
+    private int defense;  // NUOVO!
 
-    // Togli attack e health da qui! Li mettiamo solo nei Minion.
-    // (Oppure lasciali se vuoi fare prima, ma pulito è meglio toglierli)
-
-    // Costruttore Base
-    public Card(int id, String name, CardType type, int manaCost, String description) {
-        this.id = id;
+    // Costruttore aggiornato
+    public Card(String name, CardType type, int attack, int defense) {
         this.name = name;
         this.type = type;
-        this.manaCost = manaCost;
-        this.description = description;
+        this.attack = attack;
+        this.defense = defense;
     }
 
-    // Ogni carta deve implementare questo metodo, ma ognuna lo farà a modo suo
-    public abstract void play();
-
-    // ... lascia i Getters e Setters (tranne attack/health se li togli)
-    public String toString() {
-        return name + " (" + type + ")";
-    }
+    // Getters
     public String getName() {
         return name;
     }
 
-    public String getDescription() {
-        return description;
-    }
-
-    public int getManaCost() {
-        return manaCost;
-    }
     public CardType getType() {
         return type;
+    }
+
+    // QUESTI MANCAVANO!
+    public int getAttack() {
+        return attack;
+    }
+
+    public int getDefense() {
+        return defense;
     }
 }
