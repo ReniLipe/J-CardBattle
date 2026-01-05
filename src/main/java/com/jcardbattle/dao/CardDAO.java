@@ -4,6 +4,9 @@ import com.jcardbattle.model.Card;
 import java.util.List;
 
 public interface CardDAO {
-    // Qui elenchiamo COSA possiamo fare, non COME
+    // Metodo esistente
     List<Card> getAllCards();
+
+    // NUOVO METODO: Carica un mazzo specifico (Solo la firma!)
+    List<Card> loadDeck(int deckId);
 }
