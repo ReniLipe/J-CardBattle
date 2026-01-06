@@ -190,18 +190,44 @@ public class Main extends Application {
         title.setFont(Font.font("Impact", 80));
         title.setTextFill(Color.WHITE);
         title.setEffect(new DropShadow(20, Color.BLACK));
-        Label subtitle = new Label("No Popups Edition");
-        subtitle.setFont(Font.font("Arial", 20)); subtitle.setTextFill(Color.LIGHTGRAY);
 
-        Button btnPlay = createStyledButton("⚔ NUOVA PARTITA", "#e67e22");
-        btnPlay.setOnAction(e -> avviaNuovaPartita());
+        Label subtitle = new Label("Multiplayer Edition");
+        subtitle.setFont(Font.font("Arial", 20));
+        subtitle.setTextFill(Color.LIGHTGRAY);
+
+        // --- TASTO SINGLE PLAYER ---
+        Button btnPlay = createStyledButton("⚔ SINGLE PLAYER", "#e67e22");
+        btnPlay.setOnAction(e -> avviaNuovaPartita()); // Questo usa il DB locale/remoto ma giochi da solo
+
+        // --- NUOVO TASTO MULTIPLAYER ---
+        Button btnMulti = createStyledButton("🌐 GIOCA ONLINE (1vs1)", "#2980b9");
+        btnMulti.setOnAction(e -> avviaMultiplayer());
 
         Button btnExit = createStyledButton("❌ ESCI", "#c0392b");
         btnExit.setOnAction(e -> { Platform.exit(); System.exit(0); });
 
-        mainMenuLayer.getChildren().addAll(title, subtitle, new Separator(), btnPlay, btnExit);
+        mainMenuLayer.getChildren().addAll(title, subtitle, new Separator(), btnPlay, btnMulti, btnExit);
     }
 
+    // --- LOGICA CONNESSIONE ---
+    private void avviaMultiplayer() {
+        // Per ora ci colleghiamo a "localhost" (il tuo stesso PC)
+        NetworkClient client = new NetworkClient("127.0.0.1", 9999);
+
+        if (client.connect()) {
+            // Se la connessione riesce, avvia la grafica del gioco
+            log("Connesso al server multiplayer!");
+
+            // Qui in futuro diremo al gioco di NON usare la logica locale ma di aspettare il server
+            avviaNuovaPartita();
+        } else {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Errore");
+            alert.setHeaderText("Server Offline");
+            alert.setContentText("Impossibile connettersi al server. Assicurati di aver avviato GameServer!");
+            alert.showAndWait();
+        }
+    }
     // =================================================================
     // LAYER 3: OVERLAY
     // =================================================================

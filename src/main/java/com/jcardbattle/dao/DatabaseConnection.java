@@ -5,20 +5,21 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class DatabaseConnection {
-    private static final String URL = "jdbc:mysql://localhost:3306/jcardbattle_db";
-    private static final String USER = "root";
-    private static final String PASSWORD = ".P4ssW0rd_?"; // La tua password
+    // --- CORREZIONE QUI SOTTO ---
+    // Aggiunto ":3306" (porta) e "/sql7813505" (nome del database)
+    private static final String URL = "jdbc:mysql://sql7.freesqldatabase.com:3306/sql7813505";
+
+    private static final String USER = "sql7813505";
+    private static final String PASSWORD = "dZsT3mIRxw";
 
     public static Connection getConnection() throws SQLException {
-        // --- AGGIUNTA FONDAMENTALE PER JAVAFX ---
         try {
-            // Questo comando "sveglia" il driver manualmente
+            // Caricamento manuale del driver (essenziale per JavaFX/Fat JAR)
             Class.forName("com.mysql.cj.jdbc.Driver");
         } catch (ClassNotFoundException e) {
             System.err.println("Driver MySQL non trovato! Controlla il pom.xml");
             e.printStackTrace();
         }
-        // ----------------------------------------
 
         return DriverManager.getConnection(URL, USER, PASSWORD);
     }
