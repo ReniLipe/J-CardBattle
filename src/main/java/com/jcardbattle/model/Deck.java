@@ -38,6 +38,11 @@ public class Deck {
         return null;
     }
 
+    // RIMETTI NEL AZZO
+    public void add(Card card) {
+        cards.add(card);
+    }
+
     public int size() {
         return cards.size();
     }
