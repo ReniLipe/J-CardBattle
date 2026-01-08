@@ -117,12 +117,6 @@ public class GameView {
         });
     }
 
-    // --- I METODI CHE MANCAVANO (RISOLUZIONE ERRORI) ---
-    public void showGame() { mainMenuLayer.setVisible(false); overlayMenuLayer.setVisible(false); gameLayer.setVisible(true); }
-    public void showMenu() { gameLayer.setVisible(false); overlayMenuLayer.setVisible(false); mainMenuLayer.setVisible(true); }
-    public void updateLife(int life) { Platform.runLater(() -> lifeLabel.setText("TU: " + life + " ❤")); }
-    public void updateDeckCount(int count) { Platform.runLater(() -> deckCountLabel.setText(String.valueOf(count))); }
-
     // --- API AGGIORNAMENTO GRAFICO ---
     public void addCardToOpponentPile(String pileType, String cardName) {
         GamePile target = pileType.equals("GRAVEYARD") ? opponentGraveyard : opponentExile;
@@ -163,6 +157,12 @@ public class GameView {
     public void rotateOpponentCard(String cardName, String zoneType, double angle) { Platform.runLater(() -> { HBox box = zoneType.equals("LAND") ? opponentLandRow : opponentCombatRow; for(Node n : box.getChildren()) { if(n instanceof StackPane) { for(Node child : ((StackPane)n).getChildren()) { if(child instanceof Label && ((Label)child).getText().trim().equalsIgnoreCase(cardName.trim())) { n.setRotate(angle); return; } } } } }); }
     public void untapAllOpponentCards() { Platform.runLater(() -> { opponentLandRow.getChildren().forEach(n->n.setRotate(0)); opponentCombatRow.getChildren().forEach(n->n.setRotate(0)); }); }
 
+    // METODI CHE MANCAVANO
+    public void showGame() { mainMenuLayer.setVisible(false); overlayMenuLayer.setVisible(false); gameLayer.setVisible(true); }
+    public void showMenu() { gameLayer.setVisible(false); overlayMenuLayer.setVisible(false); mainMenuLayer.setVisible(true); }
+    public void updateLife(int life) { Platform.runLater(() -> lifeLabel.setText("TU: " + life + " ❤")); }
+    public void updateDeckCount(int count) { Platform.runLater(() -> deckCountLabel.setText(String.valueOf(count))); }
+
     // Helpers
     private HBox createManaDisplay(Label[] labels, boolean interactive) {
         HBox box = new HBox(10); box.setAlignment(Pos.CENTER); box.setPadding(new Insets(5)); box.setStyle("-fx-background-color: rgba(0,0,0,0.5); -fx-background-radius: 10;");
@@ -191,6 +191,7 @@ public class GameView {
     public void log(String m) { gameLog.appendText("> "+m+"\n"); }
     public void animateDeckClick() { deckVisual.setTranslateY(4); new Timer().schedule(new TimerTask() { public void run() { Platform.runLater(()->deckVisual.setTranslateY(0)); }}, 100); }
 
+    // Getters
     public Button getBtnSinglePlayer() { return btnSinglePlayer; }
     public Button getBtnMultiPlayer() { return btnMultiPlayer; }
     public Button getBtnExit() { return btnExit; }

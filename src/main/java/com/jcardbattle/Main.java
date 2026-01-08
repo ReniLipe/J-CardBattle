@@ -56,11 +56,33 @@ public class Main extends Application {
     private void setupEventHandlers(Stage stage) {
         view.getBtnSinglePlayer().setOnAction(e -> avviaNuovaPartita());
 
+        // --- MENU MULTIPLAYER (Con Input IP per Ngrok) ---
         view.getBtnMultiPlayer().setOnAction(e -> {
-            view.log("Connessione al server...");
-            netClient = new NetworkClient("127.0.0.1", 12345, msg -> gestisciMessaggioServer(msg));
-            avviaNuovaPartita();
-            netClient.sendMessage("Giocatore pronto!");
+            TextInputDialog dialog = new TextInputDialog("127.0.0.1");
+            dialog.setTitle("Connessione");
+            dialog.setHeaderText("Inserisci IP (es: 127.0.0.1 o 0.tcp.ngrok.io:12345)");
+            dialog.setContentText("Indirizzo:");
+
+            dialog.showAndWait().ifPresent(input -> {
+                String ip = input;
+                int port = 12345; // Porta default
+
+                // Se l'input contiene ':', dividi in IP e Porta
+                if (input.contains(":")) {
+                    String[] parts = input.split(":");
+                    ip = parts[0];
+                    try {
+                        port = Integer.parseInt(parts[1]);
+                    } catch (NumberFormatException ex) {
+                        view.log("Errore porta, uso 12345");
+                    }
+                }
+
+                view.log("Connessione a " + ip + ":" + port + "...");
+                netClient = new NetworkClient(ip, port, msg -> gestisciMessaggioServer(msg));
+                avviaNuovaPartita();
+                netClient.sendMessage("Giocatore pronto!");
+            });
         });
 
         view.getBtnExit().setOnAction(e -> { Platform.exit(); System.exit(0); });
@@ -392,9 +414,11 @@ public class Main extends Application {
                 String src = parts[2];
                 String dest = parts[3];
 
+                // Rimuovi da origine
                 if(src.equals("GRAVEYARD") || src.equals("EXILE")) view.removeCardFromOpponentPile(src);
                 else view.removeOpponentCard(name, src);
 
+                // Aggiungi a destinazione
                 if(dest.equals("GRAVEYARD") || dest.equals("EXILE")) view.addCardToOpponentPile(dest, name);
                 else view.addOpponentCard(name, dest);
             } catch (Exception e) {}
