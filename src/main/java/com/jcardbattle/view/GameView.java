@@ -1,8 +1,10 @@
 package com.jcardbattle.view;
 
+import com.jcardbattle.model.Card;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.effect.DropShadow;
@@ -13,9 +15,11 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.function.Consumer;
 
 public class GameView {
 
@@ -24,301 +28,168 @@ public class GameView {
     private VBox mainMenuLayer;
     private VBox overlayMenuLayer;
 
-    // --- ZONE TAVOLO ---
+    // ZONE TAVOLO
     private HBox handZone;
-    private HBox combatRow;
-    private HBox landRow;
+    private HBox combatRow, landRow;
     private HBox opponentHand, opponentCombatRow, opponentLandRow;
 
-    // --- UI INFORMATIVA ---
-    private Label lifeLabel;
-    private Label opponentLifeLabel;
+    // ZONE SPECIALI
+    private GamePile playerGraveyard, playerExile, opponentGraveyard, opponentExile;
 
-    // SISTEMA MANA INTERATTIVO (6 etichette per i colori)
+    // UI ELEMENTS
+    private Label lifeLabel, opponentLifeLabel;
     private Label[] manaLabels = new Label[6];
-
-    // SISTEMA FASI
+    private Label[] opponentManaLabels = new Label[6];
     private HBox phaseBar;
     private Map<String, Label> phaseLabels = new HashMap<>();
     private Button btnNextPhase;
 
-    // Pannello Destro
     private TextArea gameLog;
     private Label deckCountLabel;
     private StackPane deckVisual;
     private TextField searchField;
-
-    // Bottoni
     private Button btnSinglePlayer, btnMultiPlayer, btnExit, btnSearch, btnPause, btnMinusLife, btnPlusLife, btnShuffle;
 
-    public GameView() {
-        initUI();
-    }
+    public GameView() { initUI(); }
 
     private void initUI() {
-        rootLayout = new StackPane();
-        rootLayout.setStyle("-fx-background-color: #2c3e50;");
-
-        createGameLayer();
-        createMainMenuLayer(); // <--- QUI HO SISTEMATO IL CODICE
-        createOverlayLayer();
-
-        // Ordine: Gioco sotto, Menu sopra, Overlay in cima
+        rootLayout = new StackPane(); rootLayout.setStyle("-fx-background-color: #2c3e50;");
+        createGameLayer(); createMainMenuLayer(); createOverlayLayer();
         rootLayout.getChildren().addAll(gameLayer, mainMenuLayer, overlayMenuLayer);
     }
 
     public StackPane getRoot() { return rootLayout; }
 
-    // =================================================================
-    // LAYOUT GIOCO (Tavolo)
-    // =================================================================
     private void createGameLayer() {
-        gameLayer = new BorderPane();
-        gameLayer.setStyle("-fx-background-color: #22313f;");
-        gameLayer.setVisible(false);
+        gameLayer = new BorderPane(); gameLayer.setStyle("-fx-background-color: #22313f;"); gameLayer.setVisible(false);
+        gameLayer.setRight(createRightPanel());
+        gameLayer.setLeft(createLeftPanel());
 
-        VBox rightPanel = createRightPanel();
-        gameLayer.setRight(rightPanel);
-
-        // --- CENTRO (TAVOLO) ---
-        VBox boardContainer = new VBox(10);
-        boardContainer.setPadding(new Insets(10));
-        boardContainer.setAlignment(Pos.CENTER);
-        VBox.setVgrow(boardContainer, Priority.ALWAYS);
-
-        // 1. BARRA FASI
+        VBox boardContainer = new VBox(8); boardContainer.setPadding(new Insets(10)); boardContainer.setAlignment(Pos.CENTER); VBox.setVgrow(boardContainer, Priority.ALWAYS);
         createPhaseBar();
 
-        // 2. AREE AVVERSARIO
-        opponentLifeLabel = new Label("AVVERSARIO: 20 ❤");
-        opponentLifeLabel.setTextFill(Color.web("#e74c3c"));
-        opponentLifeLabel.setFont(Font.font("Impact", 18));
-
+        opponentLifeLabel = new Label("AVVERSARIO: 20 ❤"); opponentLifeLabel.setTextFill(Color.web("#e74c3c")); opponentLifeLabel.setFont(Font.font("Impact", 18));
         opponentHand = new HBox(-40); opponentHand.setAlignment(Pos.TOP_CENTER); opponentHand.setPrefHeight(80);
-        for(int i=0; i<5; i++) opponentHand.getChildren().add(createCardBack());
+        HBox oppManaBox = createManaDisplay(opponentManaLabels, false);
+        opponentLandRow = new HBox(15); opponentCombatRow = new HBox(15);
+        VBox oppLandBox = setupZoneWrapper(opponentLandRow, "🌲 TERRE NEMICHE", "#c0392b"); VBox oppCombatBox = setupZoneWrapper(opponentCombatRow, "⚔ FRONTE NEMICO", "#e74c3c");
 
-        opponentLandRow = new HBox(15);
-        opponentCombatRow = new HBox(15);
-        VBox oppLandBox = setupZoneWrapper(opponentLandRow, "🌲 TERRE NEMICHE", "#c0392b");
-        VBox oppCombatBox = setupZoneWrapper(opponentCombatRow, "⚔ FRONTE NEMICO", "#e74c3c");
+        combatRow = new HBox(15); landRow = new HBox(15);
+        VBox myCombatBox = setupZoneWrapper(combatRow, "⚔ FRONTE ALLEATO", "#2ecc71"); VBox myLandBox = setupZoneWrapper(landRow, "🌲 TERRE ALLEATE", "#27ae60");
+        HBox myManaBox = createManaDisplay(manaLabels, true);
+        handZone = new HBox(-50); handZone.setPadding(new Insets(10)); handZone.setPrefHeight(140); handZone.setAlignment(Pos.BOTTOM_CENTER); handZone.setStyle("-fx-background-color: #34495e; -fx-background-radius: 15 15 0 0; -fx-border-color: #1abc9c; -fx-border-width: 2 2 0 2;");
 
-        // 3. AREE GIOCATORE
-        combatRow = new HBox(15);
-        landRow = new HBox(15);
-        VBox myCombatBox = setupZoneWrapper(combatRow, "⚔ FRONTE", "#2ecc71");
-        VBox myLandBox = setupZoneWrapper(landRow, "🌲 TERRE", "#27ae60");
-
-        // 4. MANA POOL INTERATTIVO
-        HBox manaContainer = new HBox(10);
-        manaContainer.setAlignment(Pos.CENTER);
-        manaContainer.setPadding(new Insets(5));
-        manaContainer.setStyle("-fx-background-color: rgba(0,0,0,0.5); -fx-background-radius: 10;");
-
-        String[] symbols = {"☀", "💧", "💀", "🔥", "🌳", "💎"};
-        String[] colors = {"#f1c40f", "#3498db", "#9b59b6", "#e74c3c", "#2ecc71", "#95a5a6"};
-
-        for(int i=0; i<6; i++) {
-            manaLabels[i] = createManaBox(symbols[i], colors[i]);
-            manaContainer.getChildren().add(manaLabels[i]);
-        }
-
-        handZone = new HBox(-50);
-        handZone.setPadding(new Insets(10)); handZone.setPrefHeight(140); handZone.setAlignment(Pos.BOTTOM_CENTER);
-        handZone.setStyle("-fx-background-color: #34495e; -fx-background-radius: 15 15 0 0; -fx-border-color: #1abc9c; -fx-border-width: 2 2 0 2;");
-
-        boardContainer.getChildren().addAll(
-                phaseBar,
-                opponentLifeLabel, opponentHand, oppLandBox, oppCombatBox,
-                new Separator(),
-                myCombatBox, myLandBox,
-                manaContainer,
-                handZone
-        );
+        boardContainer.getChildren().addAll(phaseBar, opponentLifeLabel, opponentHand, oppManaBox, oppLandBox, oppCombatBox, new Separator(), myCombatBox, myLandBox, myManaBox, handZone);
         gameLayer.setCenter(boardContainer);
     }
 
-    // =================================================================
-    // MENU PRINCIPALE (RIPRISTINATO ALLA VERSIONE BELLA)
-    // =================================================================
-    private void createMainMenuLayer() {
-        mainMenuLayer = new VBox(30);
-        mainMenuLayer.setAlignment(Pos.CENTER);
-        // Sfondo Gradiente figo (NON nero piatto)
-        mainMenuLayer.setStyle("-fx-background-color: linear-gradient(to bottom right, #2c3e50, #000000);");
-
-        Label title = new Label("J-CARDBATTLE");
-        title.setFont(Font.font("Impact", 80));
-        title.setTextFill(Color.WHITE);
-        // Effetto Ombra ripristinato
-        title.setEffect(new DropShadow(20, Color.BLACK));
-
-        // Bottoni Grandi e Colorati
-        btnSinglePlayer = createStyledButton("⚔ SINGLE PLAYER", "#e67e22");
-        btnMultiPlayer = createStyledButton("🌐 GIOCA ONLINE", "#2980b9");
-        btnExit = createStyledButton("❌ ESCI", "#c0392b");
-
-        mainMenuLayer.getChildren().addAll(title, new Separator(), btnSinglePlayer, btnMultiPlayer, btnExit);
+    private VBox createLeftPanel() {
+        VBox left = new VBox(15); left.setPadding(new Insets(15)); left.setPrefWidth(140); left.setAlignment(Pos.CENTER);
+        left.setStyle("-fx-background-color: #2c3e50; -fx-border-color: #1abc9c; -fx-border-width: 0 2 0 0;");
+        opponentExile = new GamePile("ESILIO OPP.", "EXILE", "#8e44ad");
+        opponentGraveyard = new GamePile("CIMITERO OPP.", "GRAVEYARD", "#7f8c8d");
+        playerGraveyard = new GamePile("IL TUO CIMITERO", "GRAVEYARD", "#95a5a6");
+        playerExile = new GamePile("IL TUO ESILIO", "EXILE", "#9b59b6");
+        left.getChildren().addAll(opponentExile, opponentGraveyard, new Region(), playerGraveyard, playerExile);
+        VBox.setVgrow(left.getChildren().get(2), Priority.ALWAYS);
+        return left;
     }
 
-    // =================================================================
-    // PANNELLO DESTRO (CONTROLLI)
-    // =================================================================
-    private VBox createRightPanel() {
-        VBox rightPanel = new VBox(15);
-        rightPanel.setPadding(new Insets(15));
-        rightPanel.setPrefWidth(260);
-        rightPanel.setAlignment(Pos.TOP_CENTER);
-        rightPanel.setStyle("-fx-background-color: #2c3e50; -fx-border-color: #1abc9c; -fx-border-width: 0 0 0 2;");
+    public void mostraBrowserCarte(String titolo, List<Card> carte, Consumer<Card> onCardClick) {
+        Platform.runLater(() -> {
+            VBox container = new VBox(15); container.setAlignment(Pos.CENTER); container.setStyle("-fx-background-color: rgba(0,0,0,0.95); -fx-padding: 30; -fx-background-radius: 15; -fx-border-color: white; -fx-border-width: 2;"); container.setMaxSize(900, 600);
+            Label lblTitolo = new Label(titolo); lblTitolo.setFont(Font.font("Impact", 30)); lblTitolo.setTextFill(Color.WHITE);
+            FlowPane flow = new FlowPane(); flow.setHgap(15); flow.setVgap(15); flow.setAlignment(Pos.CENTER); flow.setPrefWrapLength(800); flow.setPadding(new Insets(20));
 
-        btnPause = new Button("⚙ MENU");
-        styleButtonSmall(btnPause, "#95a5a6");
-
-        lifeLabel = new Label("TU: 20 ❤");
-        lifeLabel.setTextFill(Color.web("#2ecc71"));
-        lifeLabel.setFont(Font.font("Impact", 35));
-
-        btnMinusLife = new Button("-");
-        btnPlusLife = new Button("+");
-        styleCircleButton(btnMinusLife, "#e74c3c");
-        styleCircleButton(btnPlusLife, "#27ae60");
-        HBox lifeControls = new HBox(20, btnMinusLife, btnPlusLife);
-        lifeControls.setAlignment(Pos.CENTER);
-        VBox lifeBox = new VBox(5, lifeLabel, lifeControls);
-        lifeBox.setAlignment(Pos.CENTER);
-        lifeBox.setStyle("-fx-background-color: rgba(0,0,0,0.2); -fx-padding: 10; -fx-background-radius: 10;");
-
-        deckVisual = new StackPane();
-        deckVisual.setPrefSize(100, 140); deckVisual.setMaxSize(100, 140);
-        deckVisual.setStyle("-fx-background-color: linear-gradient(to bottom right, #2980b9, #2c3e50); -fx-border-color: white; -fx-border-width: 4; -fx-border-radius: 10; -fx-cursor: hand;");
-        Label deckLogo = new Label("J"); deckLogo.setFont(Font.font("Times", FontWeight.BOLD, 50)); deckLogo.setTextFill(Color.rgb(255,255,255,0.2));
-        deckCountLabel = new Label("40"); deckCountLabel.setStyle("-fx-text-fill: white; -fx-background-color: black; -fx-padding: 2 5;");
-        StackPane.setAlignment(deckCountLabel, Pos.BOTTOM_RIGHT);
-        deckVisual.getChildren().addAll(deckLogo, deckCountLabel);
-
-        btnShuffle = new Button("🔀 MESCOLA");
-        styleButtonSmall(btnShuffle, "#8e44ad");
-
-        searchField = new TextField(); searchField.setPromptText("Cerca...");
-        btnSearch = new Button("🔍");
-        styleButtonSmall(btnSearch, "#f39c12");
-        HBox searchBox = new HBox(5, searchField, btnSearch);
-        searchBox.setAlignment(Pos.CENTER);
-
-        gameLog = new TextArea();
-        gameLog.setEditable(false);
-        gameLog.setWrapText(true);
-        VBox.setVgrow(gameLog, Priority.ALWAYS);
-        gameLog.setStyle("-fx-control-inner-background: #34495e; -fx-text-fill: white;");
-
-        rightPanel.getChildren().addAll(
-                btnPause,
-                new Separator(),
-                lifeBox,
-                new Separator(),
-                new Label("MAZZO"), deckVisual, btnShuffle,
-                new Separator(),
-                searchBox,
-                new Separator(),
-                new Label("LOG"), gameLog
-        );
-        return rightPanel;
-    }
-
-    // =================================================================
-    // UTILITIES GRAFICHE
-    // =================================================================
-    private void createPhaseBar() {
-        phaseBar = new HBox(15);
-        phaseBar.setAlignment(Pos.CENTER);
-        phaseBar.setPadding(new Insets(5));
-        phaseBar.setStyle("-fx-background-color: #000000; -fx-background-radius: 0 0 10 10;");
-
-        String[] phases = {"UNTAP", "DRAW", "MAIN 1", "COMBAT", "MAIN 2", "END"};
-        for (String p : phases) {
-            Label lbl = new Label(p);
-            lbl.setTextFill(Color.GRAY);
-            lbl.setFont(Font.font("Arial", FontWeight.BOLD, 12));
-            phaseLabels.put(p, lbl);
-            phaseBar.getChildren().add(lbl);
-        }
-
-        btnNextPhase = new Button("▶ PASSA FASE");
-        btnNextPhase.setStyle("-fx-background-color: #f1c40f; -fx-text-fill: black; -fx-font-weight: bold; -fx-cursor: hand;");
-        phaseBar.getChildren().add(btnNextPhase);
-    }
-
-    public void highlightPhase(String phaseName) {
-        phaseLabels.values().forEach(l -> {
-            l.setTextFill(Color.GRAY);
-            l.setStyle("");
+            if (carte.isEmpty()) {
+                Label empty = new Label("Nessuna carta presente."); empty.setTextFill(Color.LIGHTGRAY); empty.setFont(Font.font(18)); flow.getChildren().add(empty);
+            } else {
+                for (Card c : carte) {
+                    VBox cardNode = new CardUI(c).createCardNode(); cardNode.setCursor(Cursor.HAND);
+                    cardNode.setOnMouseClicked(e -> { hideOverlay(); onCardClick.accept(c); });
+                    Tooltip.install(cardNode, new Tooltip("Clicca per riprendere in mano"));
+                    flow.getChildren().add(cardNode);
+                }
+            }
+            ScrollPane scroll = new ScrollPane(flow); scroll.setFitToWidth(true); scroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;"); scroll.setPannable(true); VBox.setVgrow(scroll, Priority.ALWAYS);
+            Button btnClose = new Button("CHIUDI"); styleButtonSmall(btnClose, "#c0392b"); btnClose.setOnAction(e -> hideOverlay());
+            container.getChildren().addAll(lblTitolo, scroll, btnClose); showOverlay(container);
         });
-        if(phaseLabels.containsKey(phaseName)) {
-            Label active = phaseLabels.get(phaseName);
-            active.setTextFill(Color.WHITE);
-            active.setStyle("-fx-underline: true; -fx-effect: dropshadow(three-pass-box, white, 10, 0, 0, 0);");
-        }
     }
 
-    private Label createManaBox(String symbol, String colorHex) {
-        Label lbl = new Label(symbol + " 0");
-        lbl.setFont(Font.font("Consolas", FontWeight.BOLD, 18));
-        lbl.setTextFill(Color.web(colorHex));
-        lbl.setPadding(new Insets(5, 10, 5, 10));
-        lbl.setStyle("-fx-border-color: " + colorHex + "; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-color: rgba(0,0,0,0.3); -fx-cursor: hand;");
-        Tooltip.install(lbl, new Tooltip("SX: +1 | DX: -1"));
-        return lbl;
-    }
-
-    private VBox setupZoneWrapper(HBox row, String title, String colorHex) {
-        row.setPrefHeight(90); row.setPrefWidth(800); row.setAlignment(Pos.CENTER);
-        row.setStyle("-fx-border-color: " + colorHex + "; -fx-border-width: 2; -fx-background-color: " + colorHex + "22; -fx-background-radius: 5;");
-        Label label = new Label(title); label.setStyle("-fx-text-fill: " + colorHex + "; -fx-font-weight: bold; -fx-font-size: 10px;");
-        VBox wrapper = new VBox(2, label, row); wrapper.setAlignment(Pos.CENTER); VBox.setVgrow(wrapper, Priority.ALWAYS);
-        return wrapper;
-    }
-
-    private Node createCardBack() {
-        StackPane card = new StackPane(); card.setPrefSize(60, 90);
-        Rectangle bg = new Rectangle(60, 90); bg.setFill(Color.DARKBLUE); bg.setStroke(Color.WHITE); bg.setArcWidth(10); bg.setArcHeight(10);
-        card.getChildren().add(bg); return card;
-    }
-
-    private void createOverlayLayer() {
-        overlayMenuLayer = new VBox(20); overlayMenuLayer.setAlignment(Pos.CENTER);
-        overlayMenuLayer.setStyle("-fx-background-color: rgba(0, 0, 0, 0.85);"); overlayMenuLayer.setVisible(false);
-    }
-
-    private Button createStyledButton(String text, String color) {
-        Button btn = new Button(text);
-        btn.setPrefWidth(300); btn.setPrefHeight(60);
-        btn.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-background-radius: 10; -fx-cursor: hand;");
-        return btn;
-    }
-
-    private void styleButtonSmall(Button btn, String color) {
-        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
-    }
-
-    private void styleCircleButton(Button btn, String color) {
-        btn.setStyle("-fx-background-radius: 50; -fx-min-width: 40px; -fx-min-height: 40px; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 18px; -fx-cursor: hand; -fx-background-color: " + color + ";");
-    }
-
-    // --- AGGIORNA GRAFICA ---
-    public void updateManaDisplay(int[] pool) {
-        String[] symbols = {"☀", "💧", "💀", "🔥", "🌳", "💎"};
-        for(int i=0; i<6; i++) manaLabels[i].setText(symbols[i] + " " + pool[i]);
-    }
-
-    // --- GETTERS & SETTERS ---
+    // --- I METODI CHE MANCAVANO (RISOLUZIONE ERRORI) ---
     public void showGame() { mainMenuLayer.setVisible(false); overlayMenuLayer.setVisible(false); gameLayer.setVisible(true); }
     public void showMenu() { gameLayer.setVisible(false); overlayMenuLayer.setVisible(false); mainMenuLayer.setVisible(true); }
-    public void showOverlay(Node content) { overlayMenuLayer.getChildren().clear(); overlayMenuLayer.getChildren().add(content); overlayMenuLayer.setVisible(true); }
+    public void updateLife(int life) { Platform.runLater(() -> lifeLabel.setText("TU: " + life + " ❤")); }
+    public void updateDeckCount(int count) { Platform.runLater(() -> deckCountLabel.setText(String.valueOf(count))); }
+
+    // --- API AGGIORNAMENTO GRAFICO ---
+    public void addCardToOpponentPile(String pileType, String cardName) {
+        GamePile target = pileType.equals("GRAVEYARD") ? opponentGraveyard : opponentExile;
+        target.addVisualCard(cardName);
+    }
+    public void removeCardFromOpponentPile(String pileType) {
+        GamePile target = pileType.equals("GRAVEYARD") ? opponentGraveyard : opponentExile;
+        target.removeTopCard();
+    }
+    public void updateOpponentLife(int life) { Platform.runLater(() -> opponentLifeLabel.setText("AVVERSARIO: " + life + " ❤")); }
+    public void addOpponentHandCard() { Platform.runLater(() -> opponentHand.getChildren().add(createCardBack())); }
+    public void removeOpponentHandCard() { Platform.runLater(() -> { if (!opponentHand.getChildren().isEmpty()) opponentHand.getChildren().remove(opponentHand.getChildren().size() - 1); }); }
+    public void clearOpponentHand() { Platform.runLater(() -> opponentHand.getChildren().clear()); }
+    public void setOpponentHandSize(int count) { Platform.runLater(() -> { opponentHand.getChildren().clear(); for(int i=0; i<count; i++) opponentHand.getChildren().add(createCardBack()); }); }
+
+    public void addOpponentCard(String cardName, String zoneType) {
+        Platform.runLater(() -> {
+            StackPane c = new StackPane(); c.setPrefSize(80, 110); Rectangle r = new Rectangle(80, 110); r.setFill(Color.WHITE); r.setStroke(Color.BLACK);
+            Label l = new Label(cardName); l.setWrapText(true); l.setMaxWidth(70); l.setAlignment(Pos.CENTER); l.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+            c.getChildren().addAll(r, l);
+            if (zoneType.equals("LAND")) opponentLandRow.getChildren().add(c); else opponentCombatRow.getChildren().add(c);
+        });
+    }
+    public void removeOpponentCard(String cardName, String zoneType) {
+        Platform.runLater(() -> {
+            HBox box = zoneType.equals("LAND") ? opponentLandRow : opponentCombatRow;
+            Node target = null;
+            for(Node n : box.getChildren()) {
+                if(n instanceof StackPane) {
+                    for(Node child : ((StackPane)n).getChildren()) {
+                        if(child instanceof Label && ((Label)child).getText().trim().equalsIgnoreCase(cardName.trim())) { target = n; break; }
+                    }
+                } if(target!=null) break;
+            }
+            if(target!=null) box.getChildren().remove(target);
+        });
+    }
+    public void rotateOpponentCard(String cardName, String zoneType, double angle) { Platform.runLater(() -> { HBox box = zoneType.equals("LAND") ? opponentLandRow : opponentCombatRow; for(Node n : box.getChildren()) { if(n instanceof StackPane) { for(Node child : ((StackPane)n).getChildren()) { if(child instanceof Label && ((Label)child).getText().trim().equalsIgnoreCase(cardName.trim())) { n.setRotate(angle); return; } } } } }); }
+    public void untapAllOpponentCards() { Platform.runLater(() -> { opponentLandRow.getChildren().forEach(n->n.setRotate(0)); opponentCombatRow.getChildren().forEach(n->n.setRotate(0)); }); }
+
+    // Helpers
+    private HBox createManaDisplay(Label[] labels, boolean interactive) {
+        HBox box = new HBox(10); box.setAlignment(Pos.CENTER); box.setPadding(new Insets(5)); box.setStyle("-fx-background-color: rgba(0,0,0,0.5); -fx-background-radius: 10;");
+        String[] sym = {"☀", "💧", "💀", "🔥", "🌳", "💎"}; String[] cols = {"#f1c40f", "#3498db", "#9b59b6", "#e74c3c", "#2ecc71", "#95a5a6"};
+        for(int i=0; i<6; i++) {
+            labels[i] = new Label(sym[i]+" 0"); labels[i].setFont(Font.font("Consolas", FontWeight.BOLD, 16)); labels[i].setTextFill(Color.web(cols[i]));
+            labels[i].setPadding(new Insets(3,8,3,8)); labels[i].setStyle("-fx-border-color:"+cols[i]+"; -fx-border-width:2; -fx-border-radius:5; -fx-background-color:rgba(0,0,0,0.3); "+(interactive?"-fx-cursor:hand;":""));
+            if(interactive) Tooltip.install(labels[i], new Tooltip("SX:+1 DX:-1")); box.getChildren().add(labels[i]);
+        } return box;
+    }
+    public void updateManaDisplay(int[] p) { for(int i=0; i<6; i++) manaLabels[i].setText((new String[]{"☀", "💧", "💀", "🔥", "🌳", "💎"})[i]+" "+p[i]); }
+    public void updateOpponentManaDisplay(int[] p) { Platform.runLater(()->{ for(int i=0; i<6; i++) opponentManaLabels[i].setText((new String[]{"☀", "💧", "💀", "🔥", "🌳", "💎"})[i]+" "+p[i]); }); }
+    private void createMainMenuLayer() { mainMenuLayer = new VBox(30); mainMenuLayer.setAlignment(Pos.CENTER); mainMenuLayer.setStyle("-fx-background-color: linear-gradient(to bottom right, #2c3e50, #000000);"); Label t = new Label("J-CARDBATTLE"); t.setFont(Font.font("Impact", 80)); t.setTextFill(Color.WHITE); t.setEffect(new DropShadow(20, Color.BLACK)); btnSinglePlayer = createStyledButton("⚔ SINGLE PLAYER", "#e67e22"); btnMultiPlayer = createStyledButton("🌐 GIOCA ONLINE", "#2980b9"); btnExit = createStyledButton("❌ ESCI", "#c0392b"); mainMenuLayer.getChildren().addAll(t, new Separator(), btnSinglePlayer, btnMultiPlayer, btnExit); }
+    private VBox createRightPanel() { VBox r = new VBox(15); r.setPadding(new Insets(15)); r.setPrefWidth(260); r.setAlignment(Pos.TOP_CENTER); r.setStyle("-fx-background-color: #2c3e50; -fx-border-color: #1abc9c; -fx-border-width: 0 0 0 2;"); btnPause = new Button("⚙ MENU"); styleButtonSmall(btnPause, "#95a5a6"); lifeLabel = new Label("TU: 20 ❤"); lifeLabel.setTextFill(Color.web("#2ecc71")); lifeLabel.setFont(Font.font("Impact", 35)); btnMinusLife = new Button("-"); btnPlusLife = new Button("+"); styleCircleButton(btnMinusLife, "#e74c3c"); styleCircleButton(btnPlusLife, "#27ae60"); HBox lc = new HBox(20, btnMinusLife, btnPlusLife); lc.setAlignment(Pos.CENTER); deckVisual = new StackPane(); deckVisual.setPrefSize(100, 140); deckVisual.setMaxSize(100, 140); deckVisual.setStyle("-fx-background-color: linear-gradient(to bottom right, #2980b9, #2c3e50); -fx-border-color: white; -fx-border-width: 4; -fx-border-radius: 10; -fx-cursor: hand;"); deckCountLabel = new Label("40"); deckCountLabel.setStyle("-fx-text-fill: white; -fx-background-color: black; -fx-padding: 2 5;"); StackPane.setAlignment(deckCountLabel, Pos.BOTTOM_RIGHT); deckVisual.getChildren().addAll(new Label("J"), deckCountLabel); btnShuffle = new Button("🔀 MESCOLA"); styleButtonSmall(btnShuffle, "#8e44ad"); searchField = new TextField(); btnSearch = new Button("🔍"); styleButtonSmall(btnSearch, "#f39c12"); HBox sb = new HBox(5, searchField, btnSearch); sb.setAlignment(Pos.CENTER); gameLog = new TextArea(); gameLog.setEditable(false); gameLog.setWrapText(true); VBox.setVgrow(gameLog, Priority.ALWAYS); gameLog.setStyle("-fx-control-inner-background: #34495e; -fx-text-fill: white;"); r.getChildren().addAll(btnPause, new Separator(), lifeLabel, lc, new Separator(), new Label("MAZZO"), deckVisual, btnShuffle, new Separator(), sb, new Separator(), new Label("LOG"), gameLog); return r; }
+    private void createPhaseBar() { phaseBar = new HBox(15); phaseBar.setAlignment(Pos.CENTER); phaseBar.setPadding(new Insets(5)); phaseBar.setStyle("-fx-background-color: #000000; -fx-background-radius: 0 0 10 10;"); String[] p = {"UNTAP", "DRAW", "MAIN 1", "COMBAT", "MAIN 2", "END"}; for(String s : p) { Label l = new Label(s); l.setTextFill(Color.GRAY); l.setFont(Font.font("Arial", FontWeight.BOLD, 12)); phaseLabels.put(s, l); phaseBar.getChildren().add(l); } btnNextPhase = new Button("▶ PASSA FASE"); btnNextPhase.setStyle("-fx-background-color: #f1c40f; -fx-text-fill: black; -fx-font-weight: bold; -fx-cursor: hand;"); phaseBar.getChildren().add(btnNextPhase); }
+    public void highlightPhase(String name) { phaseLabels.values().forEach(l -> { l.setTextFill(Color.GRAY); l.setStyle(""); }); if(phaseLabels.containsKey(name)) { Label l = phaseLabels.get(name); l.setTextFill(Color.WHITE); l.setStyle("-fx-underline: true;"); } }
+    private VBox setupZoneWrapper(HBox row, String title, String colorHex) { row.setPrefHeight(90); row.setPrefWidth(800); row.setAlignment(Pos.CENTER); row.setStyle("-fx-border-color: " + colorHex + "; -fx-border-width: 2; -fx-background-color: " + colorHex + "22; -fx-background-radius: 5;"); Label l = new Label(title); l.setStyle("-fx-text-fill: " + colorHex + "; -fx-font-weight: bold; -fx-font-size: 10px;"); VBox w = new VBox(2, l, row); w.setAlignment(Pos.CENTER); VBox.setVgrow(w, Priority.ALWAYS); return w; }
+    private Node createCardBack() { StackPane c=new StackPane(); c.setPrefSize(60,90); Rectangle r=new Rectangle(60,90); r.setFill(Color.DARKBLUE); r.setStroke(Color.WHITE); c.getChildren().add(r); return c; }
+    private void createOverlayLayer() { overlayMenuLayer=new VBox(20); overlayMenuLayer.setAlignment(Pos.CENTER); overlayMenuLayer.setStyle("-fx-background-color: rgba(0, 0, 0, 0.85);"); overlayMenuLayer.setVisible(false); }
+    public void showOverlay(Node n) { overlayMenuLayer.getChildren().clear(); overlayMenuLayer.getChildren().add(n); overlayMenuLayer.setVisible(true); }
     public void hideOverlay() { overlayMenuLayer.setVisible(false); }
-    public void updateLife(int life) { lifeLabel.setText("TU: " + life + " ❤"); if (life <= 10) lifeLabel.setTextFill(Color.RED); else lifeLabel.setTextFill(Color.web("#2ecc71")); }
-    public void updateDeckCount(int count) { deckCountLabel.setText(String.valueOf(count)); }
-    public void log(String msg) { gameLog.appendText("> " + msg + "\n"); gameLog.setScrollTop(Double.MAX_VALUE); }
-    public void animateDeckClick() { deckVisual.setTranslateY(4); new Timer().schedule(new TimerTask() { @Override public void run() { Platform.runLater(() -> deckVisual.setTranslateY(0)); }}, 100); }
+    public void mostraSchermataFinePartita(String t, Color c) { Platform.runLater(() -> { VBox b = new VBox(20); b.setAlignment(Pos.CENTER); b.setStyle("-fx-background-color: rgba(0,0,0,0.9); -fx-padding: 50; -fx-background-radius: 20;"); Label l = new Label(t); l.setFont(Font.font("Impact", 80)); l.setTextFill(c); Button m = new Button("MENU"); styleButtonSmall(m, "#e67e22"); m.setOnAction(e -> showMenu()); b.getChildren().addAll(l, m); showOverlay(b); }); }
+    private Button createStyledButton(String t, String c) { Button b=new Button(t); b.setPrefWidth(300); b.setPrefHeight(60); b.setFont(Font.font("Arial", FontWeight.BOLD, 20)); b.setStyle("-fx-background-color:"+c+"; -fx-text-fill:white; -fx-background-radius:10; -fx-cursor:hand;"); return b; }
+    private void styleButtonSmall(Button b, String c) { b.setStyle("-fx-background-color:"+c+"; -fx-text-fill: white; -fx-font-weight:bold; -fx-cursor:hand;"); }
+    private void styleCircleButton(Button b, String c) { b.setStyle("-fx-background-radius:50; -fx-background-color:"+c+"; -fx-text-fill:white; -fx-min-width:40px; -fx-cursor:hand;"); }
+    public void log(String m) { gameLog.appendText("> "+m+"\n"); }
+    public void animateDeckClick() { deckVisual.setTranslateY(4); new Timer().schedule(new TimerTask() { public void run() { Platform.runLater(()->deckVisual.setTranslateY(0)); }}, 100); }
 
     public Button getBtnSinglePlayer() { return btnSinglePlayer; }
     public Button getBtnMultiPlayer() { return btnMultiPlayer; }
@@ -329,11 +200,12 @@ public class GameView {
     public Button getBtnPlusLife() { return btnPlusLife; }
     public Button getBtnShuffle() { return btnShuffle; }
     public Button getBtnNextPhase() { return btnNextPhase; }
-    public Label[] getManaLabels() { return manaLabels; } // NECESSARIO PER IL MAIN
-
+    public Label[] getManaLabels() { return manaLabels; }
     public StackPane getDeckVisual() { return deckVisual; }
     public TextField getSearchField() { return searchField; }
     public HBox getHandZone() { return handZone; }
     public HBox getCombatRow() { return combatRow; }
     public HBox getLandRow() { return landRow; }
+    public GamePile getPlayerGraveyard() { return playerGraveyard; }
+    public GamePile getPlayerExile() { return playerExile; }
 }

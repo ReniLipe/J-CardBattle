@@ -5,16 +5,21 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.List;
 
-public class ClientHandler {
+public class ClientHandler implements Runnable {
+
     private Socket socket;
+    private List<ClientHandler> allClients;
     private PrintWriter out;
     private BufferedReader in;
 
-    public ClientHandler(Socket socket) {
+    public ClientHandler(Socket socket, List<ClientHandler> allClients) {
         this.socket = socket;
+        this.allClients = allClients;
+
+        // --- MODIFICA: Inizializziamo SUBITO i canali qui ---
         try {
-            // Crea i canali per parlare e ascoltare
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         } catch (IOException e) {
@@ -22,16 +27,48 @@ public class ClientHandler {
         }
     }
 
+    @Override
+    public void run() {
+        try {
+            // (L'inizializzazione è stata spostata sopra, quindi qui l'ho tolta)
+
+            sendMessage("BENVENUTO NEL SERVER! Sei connesso.");
+
+            String message;
+            while ((message = in.readLine()) != null) {
+                System.out.println("Messaggio ricevuto: " + message);
+                GameServer.broadcast(message, this);
+            }
+
+        } catch (IOException e) {
+            System.out.println("Giocatore disconnesso.");
+        } finally {
+            try {
+                socket.close();
+                allClients.remove(this);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     public void sendMessage(String msg) {
-        out.println(msg);
+        if (out != null) out.println(msg);
     }
 
-    public String receiveMessage() throws IOException {
-        return in.readLine();
+    // Metodo aggiunto per risolvere il tuo errore
+    public String receiveMessage() {
+        try {
+            if (in != null) return in.readLine();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
-    // Per sapere chi è connesso (utile per i log)
+    // Metodo aggiunto prima
     public String getAddress() {
-        return socket.getInetAddress().toString();
+        if (socket != null) return socket.getInetAddress().toString();
+        return "Unknown";
     }
 }
