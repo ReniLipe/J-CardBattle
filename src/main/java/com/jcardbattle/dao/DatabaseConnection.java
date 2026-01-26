@@ -5,22 +5,19 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class DatabaseConnection {
-    // --- CORREZIONE QUI SOTTO ---
-    // Aggiunto ":3306" (porta) e "/sql7813505" (nome del database)
-    private static final String URL = "jdbc:mysql://sql7.freesqldatabase.com:3306/sql7813505";
 
-    private static final String USER = "sql7813505";
-    private static final String PASSWORD = "dZsT3mIRxw";
+    // URL JDBC per SQLite: crea un file nella cartella del gioco
+    private static final String URL = "jdbc:sqlite:jcardbattle.db";
 
     public static Connection getConnection() throws SQLException {
         try {
-            // Caricamento manuale del driver (essenziale per JavaFX/Fat JAR)
-            Class.forName("com.mysql.cj.jdbc.Driver");
+            // Carica il driver SQLite
+            Class.forName("org.sqlite.JDBC");
         } catch (ClassNotFoundException e) {
-            System.err.println("Driver MySQL non trovato! Controlla il pom.xml");
+            System.err.println("Driver SQLite non trovato! Controlla il pom.xml");
             e.printStackTrace();
         }
-
-        return DriverManager.getConnection(URL, USER, PASSWORD);
+        // SQLite non richiede user e password
+        return DriverManager.getConnection(URL);
     }
 }

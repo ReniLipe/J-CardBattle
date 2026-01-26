@@ -10,48 +10,65 @@ public class NetworkClient {
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
-    private Consumer<String> onMessageReceived; // Funzione da chiamare quando arriva un messaggio
+    private Consumer<String> onMessageReceived;
+
+    // Variabile per controllare se il client deve ascoltare
+    private boolean running = false;
 
     public NetworkClient(String serverAddress, int serverPort, Consumer<String> onMessageReceived) {
         this.onMessageReceived = onMessageReceived;
 
         try {
-            // 1. Tenta la connessione al server
+            // 1. Tenta la connessione
             this.socket = new Socket(serverAddress, serverPort);
-
-            // 2. Prepara i canali di Input/Output
             this.out = new PrintWriter(socket.getOutputStream(), true);
             this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-            // 3. Avvia un Thread separato per ascoltare i messaggi in arrivo
-            // (Così non blocchiamo il gioco mentre aspettiamo risposte)
+            this.running = true; // Attiva il flag
+
+            // 2. Avvia il thread di ascolto
             new Thread(this::listen).start();
 
         } catch (IOException e) {
-            System.err.println("Impossibile connettersi al server: " + e.getMessage());
-            // Notifica l'errore sulla grafica
+            System.err.println("Impossibile connettersi: " + e.getMessage());
             Platform.runLater(() -> onMessageReceived.accept("ERRORE: Impossibile connettersi al server."));
         }
     }
 
-    // Loop infinito che ascolta il server
     private void listen() {
         try {
             String message;
-            while ((message = in.readLine()) != null) {
+            // Controlla anche 'running' per poter fermare il loop volontariamente
+            while (running && (message = in.readLine()) != null) {
                 String finalMessage = message;
-                // IMPORTANTE: Passa il messaggio al Thread della grafica
-                Platform.runLater(() -> onMessageReceived.accept(finalMessage));
+                Platform.runLater(() -> {
+                    if (onMessageReceived != null) onMessageReceived.accept(finalMessage);
+                });
             }
         } catch (IOException e) {
-            Platform.runLater(() -> onMessageReceived.accept("DISCONNESSO dal server."));
+            if (running) { // Se l'errore capita mentre dovevamo essere connessi
+                Platform.runLater(() -> onMessageReceived.accept("DISCONNESSO dal server."));
+            }
+        } finally {
+            close(); // Assicura la chiusura
         }
     }
 
-    // Metodo per inviare messaggi al server
     public void sendMessage(String msg) {
         if (out != null) {
             out.println(msg);
+        }
+    }
+
+    // --- NUOVO METODO FONDAMENTALE ---
+    public void close() {
+        running = false;
+        try {
+            if (socket != null) socket.close();
+            if (in != null) in.close();
+            if (out != null) out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }

@@ -1,83 +1,65 @@
 package com.jcardbattle.dao;
 
 import com.jcardbattle.model.Card;
-import com.jcardbattle.model.CardType; // Assicurati di avere questo Enum
-import java.sql.*;
+import com.jcardbattle.model.CardType;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CardDAOImpl implements CardDAO {
+public class CardDAOImpl {
 
-    // 1. METODO PRINCIPALE: Carica il mazzo dal DB
-    // Questo metodo sostituisce la lista manuale che avevi prima.
-    @Override
     public List<Card> loadDeck(int deckId) {
-        List<Card> deckFromDb = new ArrayList<>();
-
-        // La query SQL che unisce le carte alla composizione del mazzo
-        String sql = "SELECT c.name, c.card_type, c.attack, c.health " +
-                "FROM cards c " +
-                "JOIN deck_composition dc ON c.id = dc.card_id " +
-                "WHERE dc.deck_id = ?";
-
-        // "Try-with-resources": chiude automaticamente la connessione alla fine
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, deckId); // Sostituisce il '?' con l'ID (es. 1)
-
-            ResultSet rs = stmt.executeQuery();
-
-            while (rs.next()) {
-                // Leggiamo i dati dalla riga SQL
-                String nome = rs.getString("name");
-                String tipoStringa = rs.getString("card_type"); // Es. "MINION"
-                int attacco = rs.getInt("attack");
-                int vita = rs.getInt("health"); // Nel DB è 'health', in Java lo usiamo come 'defense'
-
-                // Convertiamo la stringa del DB (es. "MINION") nel tipo Java Enum
-                // Se nel DB hai scritto "LAND", cercherà CardType.LAND
-                CardType tipoEnum = CardType.valueOf(tipoStringa);
-
-                // Creiamo l'oggetto Carta (usiamo la classe Card generica che mi hai mostrato prima)
-                Card c = new Card(nome, tipoEnum, attacco, vita);
-
-                deckFromDb.add(c);
-            }
-        } catch (SQLException e) {
-            System.err.println("Errore nel caricamento del mazzo dal DB!");
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            System.err.println("Errore: Il tipo di carta nel DB non corrisponde all'Enum Java!");
-            e.printStackTrace();
-        }
-
-        return deckFromDb;
-    }
-
-    // 2. METODO SECONDARIO: (Opzionale)
-    // Se vuoi ancora un metodo che prenda TUTTE le carte del gioco (per la collezione)
-    @Override
-    public List<Card> getAllCards() {
-        List<Card> allCards = new ArrayList<>();
+        List<Card> deck = new ArrayList<>();
+        // Seleziona tutte le colonne, inclusa la nuova 'color'
         String sql = "SELECT * FROM cards";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
-                CardType tipo = CardType.valueOf(rs.getString("card_type"));
-                allCards.add(new Card(
-                        rs.getString("name"),
-                        tipo,
-                        rs.getInt("attack"),
-                        rs.getInt("health")
-                ));
+                // Creiamo la carta vuota
+                Card card = new Card();
+
+                // Carichiamo i dati standard
+                card.setId(rs.getInt("id"));
+                card.setName(rs.getString("name"));
+                card.setDescription(rs.getString("description"));
+                card.setAttack(rs.getInt("attack"));
+                card.setDefense(rs.getInt("defense"));
+                card.setCost(rs.getInt("cost"));
+
+                // --- NUOVA PARTE: CARICAMENTO COLORE ---
+                String colorStr = rs.getString("color");
+                if (colorStr != null && !colorStr.isEmpty()) {
+                    card.setColor(colorStr);
+                } else {
+                    card.setColor("GRAY"); // Valore di default se manca nel DB
+                }
+                // ---------------------------------------
+
+                // Gestione Tipo (Stringa -> Enum)
+                String typeStr = rs.getString("type");
+                try {
+                    if (typeStr != null) {
+                        card.setType(CardType.valueOf(typeStr.toUpperCase()));
+                    } else {
+                        card.setType(CardType.CREATURE); // Default
+                    }
+                } catch (Exception e) {
+                    card.setType(CardType.CREATURE); // Fallback se errore
+                }
+
+                deck.add(card);
             }
+            System.out.println("Caricate " + deck.size() + " carte.");
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return allCards;
+        return deck;
     }
 }
