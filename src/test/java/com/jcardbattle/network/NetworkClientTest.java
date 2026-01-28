@@ -21,7 +21,6 @@ class NetworkClientTest {
 
     private NetworkClient client;
     private ServerSocket mockServer;
-    private Thread serverThread;
 
     // --- FIX: INIZIALIZZA JAVAFX PER I TEST ---
     @BeforeAll
@@ -42,7 +41,9 @@ class NetworkClientTest {
         int port = mockServer.getLocalPort();
 
         // Avviamo il thread del server per accettare la connessione
-        serverThread = new Thread(() -> {
+        // Messaggio di prova
+        // Server chiuso, normale
+        Thread serverThread = new Thread(() -> {
             try {
                 Socket connection = mockServer.accept();
                 PrintWriter out = new PrintWriter(connection.getOutputStream(), true);
@@ -95,7 +96,7 @@ class NetworkClientTest {
                 String line = in.readLine();
                 serverReceived[0] = line;
                 serverLatch.countDown();
-            } catch (Exception e) {}
+            } catch(Exception e) {}
         }).start();
 
         client = new NetworkClient("localhost", mockServer.getLocalPort(), msg -> {});
@@ -107,7 +108,7 @@ class NetworkClientTest {
 
         boolean received = serverLatch.await(3, TimeUnit.SECONDS);
 
-        assertTrue(received, "Il server non ha ricevuto il messaggio");
+        assertTrue(received);
         assertEquals("CIAO SERVER", serverReceived[0]);
     }
 }
