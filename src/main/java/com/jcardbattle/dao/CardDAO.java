@@ -1,6 +1,7 @@
 package com.jcardbattle.dao;
 
 import com.jcardbattle.model.Card;
+
 import java.util.List;
 
 public interface CardDAO {

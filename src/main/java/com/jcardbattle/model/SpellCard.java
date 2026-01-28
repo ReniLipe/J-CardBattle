@@ -7,5 +7,7 @@ public class SpellCard extends Card {
         super(id, name, CardType.SPELL, color, cost, 0, 0, desc);
     }
 
-    public int getManaCost() { return getCost(); }
+    public int getManaCost() {
+        return getCost();
+    }
 }

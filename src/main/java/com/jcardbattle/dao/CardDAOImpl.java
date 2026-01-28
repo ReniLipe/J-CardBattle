@@ -2,6 +2,7 @@ package com.jcardbattle.dao;
 
 import com.jcardbattle.model.Card;
 import com.jcardbattle.model.CardType;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
